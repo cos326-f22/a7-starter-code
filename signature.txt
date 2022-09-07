@@ -9,21 +9,11 @@ Running: main_index.native data/test_index_1000.txt for a year
 make_index work=? span=?
 search work=? span=?
 
-Running: population.native data/CenPop2010.txt 20 40 26 4 30 7
-slow:precompute work=? span=?
-slow:compute work=? span=?
-fast:precompute work=? span=?
-fast:compute work=? span=?
-
 Analyze your work and span numbers:
 ----------------------------------
 Fill in the ? with an asymptotic complexity formula (see instructions).
 make_index work=? span=?
 search work=? span=?
-slow:precompute work=? span=?
-slow:compute work=? span=?
-fast:precompute work=? span=?
-fast:compute work=? span=?
 
 Comments, Problems and Design Decisions:
 ----------------------------------------

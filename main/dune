@@ -1,0 +1,8 @@
+(executable
+ (name main)
+ (libraries a7lib))
+
+(install
+  (section bin)
+  (files
+    (main.exe as main)))

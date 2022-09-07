@@ -10,13 +10,10 @@
 
 ## Introduction
 
-In this assignment, you will use the functional map-reduce abstraction to
-program two "big data" applications: search engine indexing and geographic
-information queries. Parallel functional map-reduce is used in the real world
-because of its efficiency and fault-tolerance in big server farms.
-
-You may do this assignment in pairs. If you do so, both students are responsible
-for all components of the assignment.
+In this assignment, you will use the functional map-reduce abstraction
+to program a "big data" application: search engine indexing.  Parallel
+functional map-reduce is used in the real world because of its
+efficiency and fault-tolerance in big server farms.
 
 To get started, run
 
@@ -24,23 +21,10 @@ To get started, run
 git submodule update --init
 ```
 
-from your Git root directory to fetch data files needed to complete this
-assignment.
+from your git clone (the directory this README.md sits in)
+to fetch data files needed to complete this assignment.
 
 ## Preliminaries
-
-Type any of the following commands at the prompt to build components of the
-assignment:
-
-```
-make seq       // Part 0 and Part 3: unit-testing the sequence library
-make idx       // Part 1: testing your inverted index construction
-make qpop      // Part 2: testing your population queries
-```
-
-One difference to note from previous assignments: our `Makefile` builds
-`.native` files (native machine code) rather than `.byte` files (portable
-bytecode for the OCaml bytecode interpreter). This makes the code go faster.
 
 Since you probably don't have your own server farm, what to do?
 Actually, it's
@@ -96,7 +80,7 @@ module and their work and span complexity.
 | `split` | Split a sequence at a given index and return a pair of sequences. The value at the index should go in the second sequence.<br>`split [a0;a1;a2;a3] 1 = ([a0],[a1;a2;a3])`<br>This routine should fail if the index is beyond the limit of the sequence. | 1 | 1 |
 | `scan` | This is a variation of the parallel prefix scan shown in class. For a sequence `[a0; a1; a2; ...]`, the result of `scan` will be:<br>`[f base a0; f (f base a0) a1; f (f (f base a0) a1) a2; ...]` | n | log(n) |
 
-## Part 1: An Inverted Index Application
+## An Inverted Index Application
 
 The following application is designed to exercise the "Map-Reduce" style of
 computation, as described in
@@ -123,7 +107,7 @@ span, and produces a line like,
 measuring:f w=256 span=109
 ```
 
-### Part 1a: Inverted Index
+### Part 1: Inverted Index
 
 An [inverted index](https://en.wikipedia.org/wiki/Inverted_index) is a mapping
 from words to the document *and location within the document* in which they
@@ -173,7 +157,7 @@ might find `String.lowercase_ascii` from the
 [String](https://caml.inria.fr/pub/docs/manual-ocaml/libref/String.html) library
 useful.
 
-## Part 1b: Phrase search
+## Part 2: Phrase search
 
 As explained in *9 Algorithms that Changed the World,* having the location-
 within-document allows queries such as "foo **near** bar", meaning, "find
@@ -190,15 +174,15 @@ character in the last word of the phrase.)
 
 ### Testing
 
-We have provided `main_index.ml`, which is a driver that calls your function to
+We have provided `main.ml`, which is a driver that calls your function to
 build an index from a given file, then (if you use the `-dump` option) prints
 the resulting index out in string form. To run, first compile into an executable
 for testing with the given `Makefile` using `make idx`. Then run the
-`main_index.native` program with its first command line argument being the
+`main` program with its first command line argument being the
 datafile. Here's an example:
 
 ```
-./main_index.native -dump data/test_index_1.txt
+dune exec main -dump data/test_index_1.txt
 Key: {'one'} Values: {'1:4', '1:3', '1:2', '1:1'}
 ```
 
@@ -206,7 +190,7 @@ Command-line arguments after the name-of-index-file are treated as a search
 query; for example,
 
 ```
-./main_index.native data/test_index_1000.txt for a year
+dune exec main data/test_index_1000.txt for a year
 940: t rise in December, for a year-on-year rise of
 908: ts to 96,000 tonnes for a year from March 1.
 382: d not pay principal for a year and a half, the
@@ -217,163 +201,6 @@ query; for example,
 **DO NOT** change any of the types or functors provided for you&mdash;these must
 match the given interface. You may write additional functions so long as you do
 not require them to be visible outside the module.
-
-## Part 2: US Census Population
-
-The goal for this part of the assignment is to answer queries about U.S. census
-data from 2010. The `CenPop2010.txt` file in the `data` directory contains data
-for the population of roughly 220,000 geographic areas in the United States
-called *census block groups*. Each line in the file lists the latitude,
-longitude, and population for one such group. For the sake of simplicity, you
-can assume that every person counted in each group lives at the same exact
-latitude and longitude specified for that group.
-
-Suppose we want to find the total population of a region in the United States.
-How might we go about doing this? Since we can approximate the area of any shape
-with sufficiently many rectangles, we will focus on the simpler problem of
-efficiently finding the population for any rectangular area. We can think of the
-entire U.S. as a rectangle bounded by the minimum and maximum latitude/longitude
-of all the census-block-groups&mdash;this includes all of Alaska, Hawaii, Puerto
-Rico, and parts of Canada and the ocean. We might want to answer queries related
-to rectangular areas inside the U.S. such as:
-- For some rectangle inside the U.S. rectangle, what is the 2010 census
-    population total?
-- For some rectangle inside the U.S. rectangle, what percentage of the total
-    2010 census U.S. population is in it?
-
-We will investigate two different ways to answer queries such as these: 1) *the
-query search method*: a slower, simpler implementation that looks through every
-census group in parallel, and 2) *the precomputation method*: a more efficient
-implementation that precomputes intermediate population sums to answer queries
-in constant time.
-
-### Query Search
-
-We can answer a population query by searching through all the census groups and
-summing up the population of each census group that falls within the query
-rectangle. This na&iuml;ve approach must look through every single census group.
-However, using our parallel sequence implementation, we can mitigate this
-exhaustive technique by looking through census groups in parallel.
-
-We have implemented the search-based population query in the `query.ml` file for
-you. This will serve as a reference implementation that you can use to verify
-your results for the precomputation-based part of the assignment that follows.
-
-### Query Precomputation
-
-Looking at every census group each time we want to answer a query is still less
-than ideal, even in parallel. With a little extra work up front, we can answer
-answer queries more efficiently. We will build a data structure called a
-[summed area table](https://en.wikipedia.org/wiki/Summed_area_table) in order to
-answer queries in *O(1)* time.
-
-Conceptually, we will overlay a grid on top of the U.S. with *x* columns and *y*
-rows. This is what the GUI we provide is showing you (see GUI description
-below). We can represent this grid of size *x\*y* as a sequence of sequences,
-where each element is an int that will hold the total population for all
-positions that are farther South and West of that grid position. In other words,
-grid element g stores the total population in the rectangle whose bottom-left is
-the South-West corner of the country and whose upper-right corner is g. (This
-should be reminiscent of prefix-sum.)
-
-Once we have this grid initialized, there is a neat arithmetic trick to answer
-queries in *O(1)* time. To find the total population in an area with lower-left
-corner *(x1,y1)* and upper-right corner *(x2,y2)*, we can take the value for the
-top-right corner, and subtract out the values at the bottom-right and top-left
-corners. This leaves just the area we want, however, we have subtracted the
-population corresponding to the bottom-left corner twice, so we must add it back
-once more.
-
-For this part, you must build a summed area table and answer queries by
-consulting the table. You should create the summed area table as follows:
-1. Start by initializing the grid with each element corresponding to the
-    population just for census groups in that grid element.
-2. Next, build the final summed area table using appropriate operations from the
-    parallel sequence library.
-
-You will implement the `precompute` and `population_lookup` functions in
-`query.ml`. You can now test your results by following the instructions in the
-*Testing and Visualization section below*. Your results from the search-based
-population query and the precomputation-based population query should match.
-
-### Testing and Visualization
-
-We have provided the `parse.ml` and `population.ml` files to read the census
-data and answer queries via command line arguments passed to the program. The
-format for a query is:
-
-```
-./population.native [file] [rows] [cols] [left] [bottom] [right] [top]
-```
-
-The number of rows and columns are used for summed area table. Left, bottom,
-right, and top describe the row and column grid indices (starting at 1) that
-define the rectangular query. For example, to query the section of the central
-U.S. shown highlighted in the picture below using a 20 row 40 column grid, you
-would run the following command:
-
-```
-./population.native data/CenPop2010.txt 20 40 26 4 30 7
-40821662,13.1
-40821662,13.1
-```
-
-The program will evaluate the query using both the implementations described
-above and list the total population and percent of the U.S. population for both.
-To make testing easier, we provide a GUI that displays a map of the U.S. that
-you can interact with. You can change the number of rows and columns, select a
-region on the map, and ask the GUI to run your program to display the answer.
-
-```
-java -jar data/USMap.jar
-```
-
-![Population GUI](https://www.cs.princeton.edu/courses/archive/fall22/cos326/ass/population-gui.jpg)
-
-To help you debug your code, there are a number of example queries and results
-listed below. Your answer should roughly match up with the search-based
-implementation. It is okay if you get slightly different answers (depending on
-how you handle edge cases), but make sure that you are at least accurate to the
-nearest percent.
-
-```
-# Population of the western half of the United States
-./population.native data/CenPop2010.txt 10 10 1 1 6 10
-64620478,20.7
-64620478,20.7
-
-# Population of the mainland United States
-./population.native data/CenPop2010.txt 100 200 89 8 191 45
-305896552,97.9
-305896552,97.9
-
-# Population of Alaska
-./population.native data/CenPop2010.txt 2 1 1 2 1 2
-710231,0.2
-710231,0.2
-```
-
-## Part 3: Associativity
-
-Inspect **`sequence.ml`**, especially in the module **`ArraySeq`** the
-implementation of **`map_reduce`** and **`reduce`**. Notice that these are
-entirely sequential implementations that apply the function *g* left to right.
-But a parallel implementation would apply *g* in a tree-like divide-and-conquer.
-This will yield the same result if *g* is associative and *base* is a unit for
-*g*.
-
-Are you sure that every time you used **`map_reduce`** or **`reduce`** or
-**`scan`** your function was associative and your *base* was a unit for it?
-How would you even prove that? (Oh, wait a second, we know how to prove it. But
-instead...) Here's a way of experimentally testing that question.
-
-In the module **`ArraySeqAlt`**, replace the line `let map_reduce =
-ArraySeq.map_reduce` with a divide-and-conquer implementation. (`ArraySeq.t` is
-opaque, but you can implement this entirely as a client of the abstraction,
-using `S.split`.)
-
-Then run your programs using `ArraySeqAlt` in place of `ArraySeq`, by modifying
-the 2nd-to-last line of sequence.ml. Do you get the same results?
 
 ## Performance analysis
 
@@ -398,14 +225,8 @@ Your assignment will be automatically submitted every time you push your changes
 to your GitHub repository. Within a couple minutes of your submission, the
 autograder will make a comment on your commit listing the output of our testing
 suite when run against your code. **Note that you will be graded only on your
-changes to `inverted_index.ml`, `query.ml`, and `sequence.ml`**, and not on your
+changes to `inverted_index.ml`**, and not on your
 changes to any other files.
 
 You may submit and receive feedback in this way as many times as you like,
 whenever you like.
-
-## Acknowledgments
-
-This assignment is based on materials developed by Dan Licata, David Bindel, and
-Dan Grossman, further developed by Nate Foster, Ryan Newton, Christopher
-Moretti, and Andrew W. Appel.
